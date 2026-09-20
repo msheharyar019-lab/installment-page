@@ -94,6 +94,7 @@ function RecordPage({ accountId, createNew = false, onSaved }) {
   const [payments, setPayments] = useState([]);
   const [signatureUrls, setSignatureUrls] = useState({});
   const [paymentForm, setPaymentForm] = useState(newPayment);
+  const [editingPaymentId, setEditingPaymentId] = useState(null);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -119,6 +120,7 @@ function RecordPage({ accountId, createNew = false, onSaved }) {
       const { data: paymentData, error: paymentError } = await supabase.from('installment_payments').select('*').eq('account_id', data.id).order('payment_date');
       if (paymentError) setError(paymentError.message);
       setPayments(paymentData || []);
+      setEditingPaymentId(null);
       const schedule = getInstallmentSchedule(data);
       const firstUnpaid = schedule.find((scheduled) => {
         const payment = (paymentData || []).find((item) => item.payment_date.slice(0, 7) === scheduled.date.slice(0, 7));
@@ -170,7 +172,7 @@ function RecordPage({ accountId, createNew = false, onSaved }) {
       setSaving(false);
       return;
     }
-    const cumulativeSubmitted = previousSubmitted + submitted;
+    const cumulativeSubmitted = editingPaymentId ? submitted : previousSubmitted + submitted;
     const remaining = Math.max(0, Number(form.monthly_installment || 0) - cumulativeSubmitted);
     const date = new Date(`${paymentForm.payment_date}T00:00:00`);
     const { data: userData } = await supabase.auth.getUser();
@@ -188,7 +190,27 @@ function RecordPage({ accountId, createNew = false, onSaved }) {
         return !payment || Number(payment.submitted_amount || 0) < Number(form.monthly_installment || 0);
       });
       setPaymentForm(newPayment(form.monthly_installment, nextUnpaid?.date || data.payment_date));
-      setShowPaymentForm(false); setMessage('Installment history saved.');
+      setEditingPaymentId(null); setShowPaymentForm(false); setMessage(editingPaymentId ? 'Installment history updated.' : 'Installment history saved.');
+    }
+    setSaving(false);
+  };
+
+  const editPayment = (payment) => {
+    setEditingPaymentId(payment.id);
+    setPaymentForm({ payment_date: payment.payment_date, pay_amount: form.monthly_installment, submitted_amount: String(payment.submitted_amount || 0), signature: '' });
+    setShowPaymentForm(true);
+    setError('');
+  };
+
+  const deletePayment = async (payment) => {
+    if (!window.confirm(`Delete the ${payment.month_name} installment record?`)) return;
+    setSaving(true); setError('');
+    const { error: deleteError } = await supabase.from('installment_payments').delete().eq('id', payment.id);
+    if (deleteError) {
+      setError(deleteError.message);
+    } else {
+      setPayments((current) => current.filter((item) => item.id !== payment.id));
+      setMessage('Installment history deleted.');
     }
     setSaving(false);
   };
@@ -217,10 +239,10 @@ function RecordPage({ accountId, createNew = false, onSaved }) {
       {account && <>
         <section className="history-section">
           <div className="history-header">Installment History</div>
-          <div className="table-wrapper"><table><thead><tr><th>Date</th><th>Month</th><th>Received Amount</th><th>Remaining Amount</th><th>Signature</th></tr></thead><tbody>{payments.map((entry) => <tr key={entry.id}><td>{entry.payment_date}</td><td>{entry.month_name}</td><td>{money(entry.submitted_amount)}</td><td>{Number(entry.remaining_amount || 0) === 0 ? <span className="installment-complete" title="Installment complete" aria-label="Installment complete">&#10003;</span> : money(entry.remaining_amount)}</td><td>{signatureUrls[entry.id] ? <img className="payment-signature" src={signatureUrls[entry.id]} alt="Uploaded signature" /> : '-'}</td></tr>)}</tbody>{payments.length > 0 && pendingSchedule.length > 0 && <tfoot><tr><td colSpan="5"><button type="button" className="add-record-btn" onClick={() => { setPaymentForm(newPayment(form.monthly_installment, nextPaymentDate)); setShowPaymentForm(true); }}>+ Add Installment</button></td></tr></tfoot>}</table></div>
+          <div className="table-wrapper"><table><thead><tr><th>Date</th><th>Month</th><th>Received Amount</th><th>Remaining Amount</th><th>Signature</th><th>Actions</th></tr></thead><tbody>{payments.map((entry) => <tr key={entry.id}><td>{entry.payment_date}</td><td>{entry.month_name}</td><td>{money(entry.submitted_amount)}</td><td>{Number(entry.remaining_amount || 0) === 0 ? <span className="installment-complete" title="Installment complete" aria-label="Installment complete">&#10003;</span> : money(entry.remaining_amount)}</td><td>{signatureUrls[entry.id] ? <img className="payment-signature" src={signatureUrls[entry.id]} alt="Uploaded signature" /> : '-'}</td><td><div className="payment-actions"><button type="button" className="payment-action edit" onClick={() => editPayment(entry)} title="Edit installment" aria-label="Edit installment">&#9998;</button><button type="button" className="payment-action delete" onClick={() => deletePayment(entry)} title="Delete installment" aria-label="Delete installment">&#128465;</button></div></td></tr>)}</tbody>{payments.length > 0 && pendingSchedule.length > 0 && <tfoot><tr><td colSpan="6"><button type="button" className="add-record-btn" onClick={() => { setEditingPaymentId(null); setPaymentForm(newPayment(form.monthly_installment, nextPaymentDate)); setShowPaymentForm(true); }}>+ Add Installment</button></td></tr></tfoot>}</table></div>
         </section>
         {pendingSchedule.length > 0 && payments.length === 0 && <button type="button" className="add-record-btn" onClick={() => { setPaymentForm(newPayment(form.monthly_installment, nextPaymentDate)); setShowPaymentForm(true); }}>+ Add First Installment</button>}
-        {showPaymentForm && <form className="payment-form area-block" onSubmit={savePayment}><div className="section-title">Add Installment History</div><div className="payment-grid"><label>Date<input type="date" value={paymentForm.payment_date} readOnly required /></label><label>Month<select value={paymentForm.payment_date} onChange={(e) => setPaymentForm({ ...paymentForm, payment_date: e.target.value })}>{pendingSchedule.map((scheduled) => <option key={scheduled.date} value={scheduled.date}>{scheduled.monthName}</option>)}</select></label><label>Received Amount<input type="number" min="0" max={form.monthly_installment} value={paymentForm.submitted_amount} onChange={(e) => setPaymentForm({ ...paymentForm, submitted_amount: e.target.value })} required /></label></div><button className="save-record-btn" type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save History'}</button></form>}
+        {showPaymentForm && <form className="payment-form area-block" onSubmit={savePayment}><div className="section-title">{editingPaymentId ? 'Edit Installment History' : 'Add Installment History'}</div><div className="payment-grid"><label>Date<input type="date" value={paymentForm.payment_date} readOnly required /></label>{editingPaymentId ? <label>Month<input type="text" value={monthNames[new Date(`${paymentForm.payment_date}T00:00:00`).getMonth()]} readOnly /></label> : <label>Month<select value={paymentForm.payment_date} onChange={(e) => setPaymentForm({ ...paymentForm, payment_date: e.target.value })}>{pendingSchedule.map((scheduled) => <option key={scheduled.date} value={scheduled.date}>{scheduled.monthName}</option>)}</select></label>}<label>Received Amount<input type="number" min="0" max={form.monthly_installment} value={paymentForm.submitted_amount} onChange={(e) => setPaymentForm({ ...paymentForm, submitted_amount: e.target.value })} required /></label></div><button className="save-record-btn" type="submit" disabled={saving}>{saving ? 'Saving...' : editingPaymentId ? 'Update History' : 'Save History'}</button></form>}
         <div className="record-totals">
           <div><span>Total Amount:</span><strong>{money(form.total_amount)}</strong></div>
           <div><span>Advance Amount:</span><strong>{money(form.advance_amount)}</strong></div>

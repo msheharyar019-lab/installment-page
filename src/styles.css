@@ -532,6 +532,34 @@ th {
   font-weight: 900;
 }
 
+.payment-actions {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.payment-action {
+  width: 30px;
+  height: 30px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.payment-action.edit {
+  border-color: #1d2d75;
+  background: #eef1ff;
+  color: #1d2d75;
+}
+
+.payment-action.delete {
+  border-color: #b42318;
+  background: #fff0ef;
+  color: #b42318;
+}
+
 .signature-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
