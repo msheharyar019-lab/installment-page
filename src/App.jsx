@@ -220,7 +220,7 @@ function RecordPage({ accountId, createNew = false, onSaved }) {
   return (
     <div className="page">
       <header className="top-header">
-        <div className="brand-wrap"><div className="brand-logo">A</div><div className="brand-text"><div className="brand-name">AZAM</div><div className="brand-sub">ELECTRONICS</div></div></div>
+        <div className="brand-wrap"><div className="brand-logo">A</div><div className="brand-text"><div className="brand-name">ASAD</div><div className="brand-sub">ELECTRONICS</div></div></div>
         <div className="header-right"><div className="header-line">Customer Copy</div><div className="header-title">INSTALLMENT RECORD</div></div>
       </header>
 
@@ -228,7 +228,7 @@ function RecordPage({ accountId, createNew = false, onSaved }) {
         <section className="details-section area-block">
           <div className="section-title">Customer & Product Details</div>
           <div className="detail-grid">
-            <div className="detail-row"><span className="detail-label">Account No.</span><input className="detail-input" value={form.account_no} readOnly /></div>
+            <label className="detail-row"><span className="detail-label">Account No.</span><input className="detail-input" value={form.account_no} onChange={(e) => updateForm('account_no', e.target.value)} required /></label>
             <div className="detail-row"><span className="detail-label">Date</span><input className="detail-input" type="date" value={form.record_date} onChange={(e) => updateForm('record_date', e.target.value)} /></div>
             {accountFields.map(([field, label]) => <label className="detail-row" key={field}><span className="detail-label">{label}</span><input className="detail-input" type={['total_amount', 'advance_amount', 'installment_duration', 'monthly_installment'].includes(field) ? 'number' : 'text'} value={form[field] ?? ''} onChange={(e) => updateForm(field, e.target.value)} required={!['address', 'mobile_no_2', 'guarantor_name', 'guarantor_father_name', 'guarantor_nationality', 'guarantor_address', 'guarantor_mobile'].includes(field)} /></label>)}
           </div>
@@ -376,7 +376,7 @@ function ReportPage({ onOpenRecord }) {
         <div className="report-brand">
           <div className="report-logo">A</div>
           <div>
-            <div className="report-brand-name">AZAM ELECTRONICS</div>
+            <div className="report-brand-name">ASAD ELECTRONICS</div>
           </div>
         </div>
 
@@ -554,7 +554,7 @@ function AuthPage() {
   return (
     <main className="auth-page">
       <section className="auth-card">
-        <div className="auth-brand">AZAM ELECTRONICS</div>
+        <div className="auth-brand">ASAD ELECTRONICS</div>
         <h1>{isSignup ? 'Create your account' : 'Welcome back'}</h1>
         <p className="auth-subtitle">
           {isSignup ? 'Sign up to access your installment records and reports.' : 'Log in to access your installment records and reports.'}
